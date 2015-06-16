@@ -13,13 +13,11 @@ import errno
 import inspect
 import time
 
-# Depurar 
+# Depurar
 def decorador(f):
     def decorada(*args, **kwargs):
-        if inspect.ismethod(f):
-            print time.time(), f.__name__, args[1:], kwargs
-        elif inspect.isfunction(f):
-            print time.time(), f.__name__, args[1:], kwargs
+        # Quitar el primer argumento, self
+        print time.time(), f.__name__, args[1:], kwargs
 
         return f(*args, **kwargs)
     return decorada
@@ -52,17 +50,28 @@ class Passthrough(Operations):
     # ==================
     @decorador
     def access(self, path, mode):
+        """
+        man access
+        """
         full_path = self._full_path(path)
         if not os.access(full_path, mode):
             raise FuseOSError(errno.EACCES)
     @decorador
     def chmod(self, path, mode):
+        """
+        man chmod
+        """
         full_path = self._full_path(path)
         return os.chmod(full_path, mode)
+
     @decorador
     def chown(self, path, uid, gid):
+        """
+        man chown
+        """
         full_path = self._full_path(path)
         return os.chown(full_path, uid, gid)
+
     @decorador
     def getattr(self, path, fh=None):
         full_path = self._full_path(path)
@@ -71,6 +80,9 @@ class Passthrough(Operations):
                      'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
     @decorador
     def readdir(self, path, fh):
+        """
+        man readdir
+        """
         full_path = self._full_path(path)
 
         dirents = ['.', '..']
@@ -80,6 +92,9 @@ class Passthrough(Operations):
             yield r
     @decorador
     def readlink(self, path):
+        """
+        man readlink
+        """
         pathname = os.readlink(self._full_path(path))
         if pathname.startswith("/"):
             # Path name is absolute, sanitize it.
@@ -88,72 +103,122 @@ class Passthrough(Operations):
             return pathname
     @decorador
     def mknod(self, path, mode, dev):
+        """
+        man mknod
+        """
         return os.mknod(self._full_path(path), mode, dev)
+
     @decorador
     def rmdir(self, path):
+        """
+        man rmdir
+        """
         full_path = self._full_path(path)
         return os.rmdir(full_path)
+
     @decorador
     def mkdir(self, path, mode):
+        """
+        man mkdir
+        """
         return os.mkdir(self._full_path(path), mode)
+
     @decorador
     def statfs(self, path):
+        """
+        man statfs
+        """
         full_path = self._full_path(path)
         stv = os.statvfs(full_path)
-        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
+        return dict((key, getattr(stv, key)) for key in (
+            'f_bavail', 'f_bfree',
             'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
             'f_frsize', 'f_namemax'))
+
     @decorador
     def unlink(self, path):
+        """
+        man unlink
+        """
         return os.unlink(self._full_path(path))
+
     @decorador
     def symlink(self, name, target):
+        """
+        man symlink
+        """
         return os.symlink(name, self._full_path(target))
+
     @decorador
     def rename(self, old, new):
+        """
+        man rename
+        """
         return os.rename(self._full_path(old), self._full_path(new))
+
     @decorador
     def link(self, target, name):
+        """
+        man link
+        """
         return os.link(self._full_path(target), self._full_path(name))
 
     @decorador
     def utimens(self, path, times=None):
+        """
+        man utime
+        """
         return os.utime(self._full_path(path), times)
 
     # File methods
     # ============
     @decorador
     def open(self, path, flags):
+        """
+        man 2 open
+        """
 
         full_path = self._full_path(path)
         return os.open(full_path, flags)
 
     @decorador
     def create(self, path, mode, fi=None):
-
+        """
+        man creat
+        """
         full_path = self._full_path(path)
         return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
     @decorador
     def read(self, path, length, offset, fh):
-
+        """
+        man 2 read
+        """
         os.lseek(fh, offset, os.SEEK_SET)
         return os.read(fh, length)
 
     @decorador
     def write(self, path, buf, offset, fh):
-
+        """
+        man 2 write
+        """
         os.lseek(fh, offset, os.SEEK_SET)
         return os.write(fh, buf)
+
     @decorador
     def truncate(self, path, length, fh=None):
-
+        """
+        man 2 truncate
+        """
         full_path = self._full_path(path)
         with open(full_path, 'r+') as f:
             f.truncate(length)
 
     @decorador
     def flush(self, path, fh):
+        """
+        man flush
+        """
         return os.fsync(fh)
 
     @decorador
@@ -162,6 +227,9 @@ class Passthrough(Operations):
 
     @decorador
     def fsync(self, path, fdatasync, fh):
+        """
+        man fsync
+        """
         return self.flush(path, fh)
 
 
@@ -175,7 +243,7 @@ if __name__ == '__main__':
     punto_de_montaje = './punto_de_montaje'
     raiz = './raiz'
     if os.path.isdir(punto_de_montaje):
-        print "Borrando {}".format(punto_de_montaje) 
+        print "Borrando {}".format(punto_de_montaje)
         shutil.rmtree(punto_de_montaje)
     os.mkdir(punto_de_montaje)
     if not os.path.isdir(raiz):
